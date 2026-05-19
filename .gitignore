@@ -30,3 +30,12 @@ vite.config.js.timestamp-*
 .devcontainer/.env*
 *.tsbuildinfo
 *.tsbuildInfo
+
+# Ignore environment config files
+.env
+**/.env
+**/.env.*
+
+# Ignore open-api generated SDK files
+open-api/typescript-sdk/
+
