@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { OnEvent } from 'src/decorators';
 import { mapAsset } from 'src/dtos/asset-response.dto';
 import { JobCreateDto } from 'src/dtos/job.dto';
-import { AssetType, AssetVisibility, JobName, JobStatus, ManualJobName } from 'src/enum';
+import { AssetType, AssetVisibility, JobName, JobStatus, ManualJobName, QueueName } from 'src/enum';
 import { ArgsOf } from 'src/repositories/event.repository';
 import { BaseService } from 'src/services/base.service';
 import { JobItem } from 'src/types';
@@ -49,6 +49,10 @@ export class JobService extends BaseService {
   @OnEvent({ name: 'JobRun' })
   async onJobRun(...[queueName, job]: ArgsOf<'JobRun'>) {
     try {
+      if (await this.deferMachineLearningJob(queueName, job)) {
+        return;
+      }
+
       await this.eventRepository.emit('JobStart', queueName, job);
       const response = await this.jobRepository.run(job);
       await this.eventRepository.emit('JobSuccess', { job, response });
@@ -60,6 +64,76 @@ export class JobService extends BaseService {
     } finally {
       await this.eventRepository.emit('JobComplete', queueName, job);
     }
+  }
+
+  private isMachineLearningJob(job: JobItem) {
+    return [
+      JobName.SmartSearchQueueAll,
+      JobName.SmartSearch,
+      JobName.AssetDetectFacesQueueAll,
+      JobName.AssetDetectFaces,
+      JobName.FacialRecognitionQueueAll,
+      JobName.FacialRecognition,
+      JobName.AssetDetectDuplicatesQueueAll,
+      JobName.AssetDetectDuplicates,
+      JobName.OcrQueueAll,
+      JobName.Ocr,
+    ].includes(job.name);
+  }
+
+  private isWithinSchedule(startTime: string, endTime: string) {
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const now = new Date();
+    const current = now.getHours() * 60 + now.getMinutes();
+    const start = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+
+    return start <= end ? current >= start && current < end : current >= start || current < end;
+  }
+
+  private async hasBusyQueues(currentQueue: QueueName) {
+    const busyQueues = [
+      QueueName.BackgroundTask,
+      QueueName.MetadataExtraction,
+      QueueName.ThumbnailGeneration,
+      QueueName.VideoConversion,
+      QueueName.Library,
+      QueueName.Migration,
+      QueueName.Sidecar,
+      QueueName.CloudSync,
+    ].filter((queueName) => queueName !== currentQueue);
+
+    const active = await Promise.all(busyQueues.map((queueName) => this.jobRepository.isActive(queueName)));
+    return active.some(Boolean);
+  }
+
+  private async deferMachineLearningJob(queueName: QueueName, job: JobItem) {
+    if (!this.isMachineLearningJob(job)) {
+      return false;
+    }
+
+    const config = await this.getConfig({ withCache: false });
+    const schedule = config.machineLearning.schedule;
+    if (!schedule.enabled) {
+      return false;
+    }
+
+    const outsideWindow = !this.isWithinSchedule(schedule.startTime, schedule.endTime);
+    const busy = schedule.onlyWhenIdle && (await this.hasBusyQueues(queueName));
+    if (!outsideWindow && !busy) {
+      return false;
+    }
+
+    const delay = schedule.deferDelayMinutes * 60 * 1000;
+    this.logger.debug(
+      `Deferring ${job.name} for ${schedule.deferDelayMinutes} minutes (${outsideWindow ? 'outside schedule' : 'server busy'})`,
+    );
+    await this.jobRepository.queue({
+      name: job.name,
+      data: { ...(job.data || {}), delay },
+    } as JobItem);
+    return true;
   }
 
   /**

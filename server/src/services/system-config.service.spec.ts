@@ -112,6 +112,13 @@ const updatedConfig = Object.freeze<SystemConfig>({
       minRecognitionScore: 0.8,
       maxResolution: 736,
     },
+    schedule: {
+      enabled: false,
+      startTime: '02:00',
+      endTime: '06:00',
+      onlyWhenIdle: true,
+      deferDelayMinutes: 15,
+    },
   },
   map: {
     enabled: true,
@@ -209,21 +216,6 @@ const updatedConfig = Object.freeze<SystemConfig>({
     provider: null,
     onedrive: {
       clientId: '',
-    },
-    googleDrive: {
-      clientId: '',
-      clientSecret: '',
-    },
-    dropbox: {
-      clientId: '',
-      clientSecret: '',
-    },
-    s3: {
-      endpoint: '',
-      region: 'us-east-1',
-      bucket: '',
-      accessKey: '',
-      secretKey: '',
     },
   },
   notifications: {

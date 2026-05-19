@@ -60,6 +60,13 @@ export type SystemConfig = {
       timeout: number;
       interval: number;
     };
+    schedule: {
+      enabled: boolean;
+      startTime: string;
+      endTime: string;
+      onlyWhenIdle: boolean;
+      deferDelayMinutes: number;
+    };
     clip: {
       enabled: boolean;
       modelName: string;
@@ -197,21 +204,6 @@ export type SystemConfig = {
     onedrive: {
       clientId: string;
     };
-    googleDrive: {
-      clientId: string;
-      clientSecret: string;
-    };
-    dropbox: {
-      clientId: string;
-      clientSecret: string;
-    };
-    s3: {
-      endpoint?: string;
-      region?: string;
-      bucket?: string;
-      accessKey?: string;
-      secretKey?: string;
-    };
   };
 };
 
@@ -275,6 +267,13 @@ export const defaults = Object.freeze<SystemConfig>({
       enabled: true,
       timeout: 2000,
       interval: 30_000,
+    },
+    schedule: {
+      enabled: process.env.IMMICH_LOW_RESOURCE_MODE === 'true',
+      startTime: process.env.IMMICH_ML_SCHEDULE_START || '02:00',
+      endTime: process.env.IMMICH_ML_SCHEDULE_END || '06:00',
+      onlyWhenIdle: process.env.IMMICH_ML_ONLY_WHEN_IDLE !== 'false',
+      deferDelayMinutes: Number(process.env.IMMICH_ML_DEFER_DELAY_MINUTES || 15),
     },
     clip: {
       enabled: true,
@@ -427,21 +426,6 @@ export const defaults = Object.freeze<SystemConfig>({
     provider: null,
     onedrive: {
       clientId: '',
-    },
-    googleDrive: {
-      clientId: '',
-      clientSecret: '',
-    },
-    dropbox: {
-      clientId: '',
-      clientSecret: '',
-    },
-    s3: {
-      endpoint: '',
-      region: 'us-east-1',
-      bucket: '',
-      accessKey: '',
-      secretKey: '',
     },
   },
 });

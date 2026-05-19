@@ -132,11 +132,22 @@ const MachineLearningAvailabilityChecksSchema = z
   })
   .meta({ id: 'MachineLearningAvailabilityChecksDto' });
 
+const MachineLearningScheduleSchema = z
+  .object({
+    enabled: configBool.describe('Only run machine learning jobs during a configured window'),
+    startTime: z.string().describe('Start time in HH:mm format'),
+    endTime: z.string().describe('End time in HH:mm format'),
+    onlyWhenIdle: configBool.describe('Defer machine learning jobs while other heavy queues are active'),
+    deferDelayMinutes: z.int().min(1).describe('Minutes to wait before retrying a deferred machine learning job'),
+  })
+  .meta({ id: 'MachineLearningScheduleDto' });
+
 const SystemConfigMachineLearningSchema = z
   .object({
     enabled: configBool.describe('Enabled'),
     urls: z.array(z.string()).min(1).describe('ML service URLs'),
     availabilityChecks: MachineLearningAvailabilityChecksSchema,
+    schedule: MachineLearningScheduleSchema,
     clip: CLIPConfigSchema,
     duplicateDetection: DuplicateDetectionConfigSchema,
     facialRecognition: FacialRecognitionConfigSchema,
@@ -348,44 +359,17 @@ const SystemConfigUserSchema = z
   })
   .meta({ id: 'SystemConfigUserDto' });
 
-const SystemConfigCloudStorageS3Schema = z
-  .object({
-    endpoint: z.string().optional(),
-    region: z.string().optional(),
-    bucket: z.string().optional(),
-    accessKey: z.string().optional(),
-    secretKey: z.string().optional(),
-  })
-  .meta({ id: 'SystemConfigCloudStorageS3Dto' });
-
 const SystemConfigCloudStorageOneDriveSchema = z
   .object({
     clientId: z.string().describe('OneDrive client ID'),
   })
   .meta({ id: 'SystemConfigCloudStorageOneDriveDto' });
 
-const SystemConfigCloudStorageGoogleDriveSchema = z
-  .object({
-    clientId: z.string().describe('Google Drive client ID'),
-    clientSecret: z.string().describe('Google Drive client secret'),
-  })
-  .meta({ id: 'SystemConfigCloudStorageGoogleDriveDto' });
-
-const SystemConfigCloudStorageDropboxSchema = z
-  .object({
-    clientId: z.string().describe('Dropbox client ID'),
-    clientSecret: z.string().describe('Dropbox client secret'),
-  })
-  .meta({ id: 'SystemConfigCloudStorageDropboxDto' });
-
 const SystemConfigCloudStorageSchema = z
   .object({
     enabled: configBool.describe('Enabled'),
     provider: CloudStorageProviderSchema.nullable().describe('Provider'),
     onedrive: SystemConfigCloudStorageOneDriveSchema,
-    googleDrive: SystemConfigCloudStorageGoogleDriveSchema,
-    dropbox: SystemConfigCloudStorageDropboxSchema,
-    s3: SystemConfigCloudStorageS3Schema,
   })
   .meta({ id: 'SystemConfigCloudStorageDto' });
 
