@@ -210,21 +210,6 @@ The default configuration looks like this:
     "provider": null,
     "onedrive": {
       "clientId": ""
-    },
-    "googleDrive": {
-      "clientId": "",
-      "clientSecret": ""
-    },
-    "dropbox": {
-      "clientId": "",
-      "clientSecret": ""
-    },
-    "s3": {
-      "endpoint": "",
-      "region": "us-east-1",
-      "bucket": "",
-      "accessKey": "",
-      "secretKey": ""
     }
   },
   "passwordLogin": {

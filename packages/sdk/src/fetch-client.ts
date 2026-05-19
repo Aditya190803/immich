@@ -2372,6 +2372,18 @@ export type OcrConfig = {
     /** Name of the model to use */
     modelName: string;
 };
+export type MachineLearningScheduleConfig = {
+    /** Defer ML jobs until the configured window */
+    enabled: boolean;
+    /** End time */
+    endTime: string;
+    /** Minutes to wait before retrying a deferred machine learning job */
+    deferDelayMinutes: number;
+    /** Defer machine learning jobs while other heavy queues are active */
+    onlyWhenIdle: boolean;
+    /** Start time */
+    startTime: string;
+};
 export type SystemConfigMachineLearningDto = {
     availabilityChecks: MachineLearningAvailabilityChecksDto;
     clip: ClipConfig;
@@ -2380,6 +2392,7 @@ export type SystemConfigMachineLearningDto = {
     enabled: boolean;
     facialRecognition: FacialRecognitionConfig;
     ocr: OcrConfig;
+    schedule: MachineLearningScheduleConfig;
     /** ML service URLs */
     urls: string[];
 };
@@ -2515,37 +2528,13 @@ export type SystemConfigCloudStorageOneDriveDto = {
     /** OneDrive client ID */
     clientId: string;
 };
-export type SystemConfigCloudStorageGoogleDriveDto = {
-    /** Google Drive client ID */
-    clientId: string;
-    /** Google Drive client secret */
-    clientSecret: string;
-};
-export type SystemConfigCloudStorageDropboxDto = {
-    /** Dropbox client ID */
-    clientId: string;
-    /** Dropbox client secret */
-    clientSecret: string;
-};
-export type SystemConfigCloudStorageS3Dto = {
-    accessKey?: string;
-    bucket?: string;
-    endpoint?: string;
-    region?: string;
-    secretKey?: string;
-};
 export type SystemConfigCloudStorageDto = {
-    /** Dropbox credentials */
-    dropbox: SystemConfigCloudStorageDropboxDto;
     /** Enabled */
     enabled: boolean;
-    /** Google Drive credentials */
-    googleDrive: SystemConfigCloudStorageGoogleDriveDto;
     /** OneDrive credentials */
     onedrive: SystemConfigCloudStorageOneDriveDto;
     /** Provider */
-    provider: 'onedrive' | 'google_drive' | 'dropbox' | 's3_compatible' | null;
-    s3: SystemConfigCloudStorageS3Dto;
+    provider: 'onedrive' | null;
 };
 export type SystemConfigDto = {
     backup: SystemConfigBackupsDto;
@@ -7052,7 +7041,8 @@ export enum QueueName {
     BackupDatabase = "backupDatabase",
     Ocr = "ocr",
     Workflow = "workflow",
-    Editor = "editor"
+    Editor = "editor",
+    CloudSync = "cloudSync"
 }
 export enum QueueCommand {
     Start = "start",
@@ -7144,7 +7134,11 @@ export enum JobName {
     VersionCheck = "VersionCheck",
     OcrQueueAll = "OcrQueueAll",
     Ocr = "Ocr",
-    WorkflowAssetCreate = "WorkflowAssetCreate"
+    WorkflowAssetCreate = "WorkflowAssetCreate",
+    CloudSyncQueueAll = "CloudSyncQueueAll",
+    CloudSync = "CloudSync",
+    CloudSyncCleanup = "CloudSyncCleanup",
+    CloudSyncDelete = "CloudSyncDelete"
 }
 export enum SearchSuggestionType {
     Country = "country",

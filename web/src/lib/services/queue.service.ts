@@ -11,6 +11,7 @@ import { modalManager, toastManager, type ActionItem, type IconLike } from '@imm
 import {
   mdiClose,
   mdiCog,
+  mdiCloudUploadOutline,
   mdiContentDuplicate,
   mdiDatabaseOutline,
   mdiFaceRecognition,
@@ -244,6 +245,11 @@ export const asQueueItem = ($t: MessageFormatter, queue: { name: QueueName }): Q
     [QueueName.Editor]: {
       icon: mdiPencil,
       title: $t('editor'),
+    },
+    [QueueName.CloudSync]: {
+      icon: mdiCloudUploadOutline,
+      title: 'Cloud storage',
+      subtitle: 'Uploads originals to OneDrive and cleans local staged files',
     },
   };
 

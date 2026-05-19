@@ -4859,10 +4859,7 @@
             "in": "path",
             "schema": {
               "enum": [
-                "onedrive",
-                "google_drive",
-                "dropbox",
-                "s3_compatible"
+                "onedrive"
               ],
               "type": "string"
             }
@@ -4927,10 +4924,7 @@
             "in": "path",
             "schema": {
               "enum": [
-                "onedrive",
-                "google_drive",
-                "dropbox",
-                "s3_compatible"
+                "onedrive"
               ],
               "type": "string"
             }
@@ -5016,50 +5010,6 @@
         ],
         "x-immich-admin-only": true,
         "x-immich-permission": "systemConfig.read"
-      }
-    },
-    "/cloud-storage/test-connection/{provider}": {
-      "post": {
-        "description": "Test connection to a cloud storage provider.",
-        "operationId": "testConnection",
-        "parameters": [
-          {
-            "name": "provider",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "enum": [
-                "onedrive",
-                "google_drive",
-                "dropbox",
-                "s3_compatible"
-              ],
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          },
-          {
-            "cookie": []
-          },
-          {
-            "api_key": []
-          }
-        ],
-        "summary": "Test cloud storage connection",
-        "tags": [
-          "Cloud Storage"
-        ],
-        "x-immich-admin-only": true,
-        "x-immich-permission": "systemConfig.update"
       }
     },
     "/download/archive": {
@@ -15464,7 +15414,7 @@
     },
     {
       "name": "Cloud Storage",
-      "description": "Cloud storage integration for backing up assets to OneDrive, Google Drive, Dropbox, or S3-compatible storage."
+      "description": "Cloud storage integration for storing uploaded originals in OneDrive."
     },
     {
       "name": "Database Backups (admin)",
@@ -17501,10 +17451,7 @@
       "CloudStorageProvider": {
         "description": "Cloud storage provider",
         "enum": [
-          "onedrive",
-          "google_drive",
-          "dropbox",
-          "s3_compatible"
+          "onedrive"
         ],
         "type": "string"
       },
@@ -18344,7 +18291,9 @@
           "OcrQueueAll",
           "Ocr",
           "WorkflowAssetCreate",
+          "CloudSyncQueueAll",
           "CloudSync",
+          "CloudSyncCleanup",
           "CloudSyncDelete"
         ],
         "type": "string"
@@ -18609,6 +18558,40 @@
           "enabled",
           "interval",
           "timeout"
+        ],
+        "type": "object"
+      },
+      "MachineLearningScheduleDto": {
+        "properties": {
+          "deferDelayMinutes": {
+            "description": "Minutes to wait before retrying a deferred machine learning job",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "enabled": {
+            "description": "Only run machine learning jobs during a configured window",
+            "type": "boolean"
+          },
+          "endTime": {
+            "description": "End time in HH:mm format",
+            "type": "string"
+          },
+          "onlyWhenIdle": {
+            "description": "Defer machine learning jobs while other heavy queues are active",
+            "type": "boolean"
+          },
+          "startTime": {
+            "description": "Start time in HH:mm format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deferDelayMinutes",
+          "enabled",
+          "endTime",
+          "onlyWhenIdle",
+          "startTime"
         ],
         "type": "object"
       },
@@ -24128,34 +24111,11 @@
         ],
         "type": "object"
       },
-      "SystemConfigCloudStorageDropboxDto": {
-        "properties": {
-          "clientId": {
-            "description": "Dropbox client ID",
-            "type": "string"
-          },
-          "clientSecret": {
-            "description": "Dropbox client secret",
-            "type": "string"
-          }
-        },
-        "required": [
-          "clientId",
-          "clientSecret"
-        ],
-        "type": "object"
-      },
       "SystemConfigCloudStorageDto": {
         "properties": {
-          "dropbox": {
-            "$ref": "#/components/schemas/SystemConfigCloudStorageDropboxDto"
-          },
           "enabled": {
             "description": "Enabled",
             "type": "boolean"
-          },
-          "googleDrive": {
-            "$ref": "#/components/schemas/SystemConfigCloudStorageGoogleDriveDto"
           },
           "onedrive": {
             "$ref": "#/components/schemas/SystemConfigCloudStorageOneDriveDto"
@@ -24168,35 +24128,12 @@
             ],
             "description": "Provider",
             "nullable": true
-          },
-          "s3": {
-            "$ref": "#/components/schemas/SystemConfigCloudStorageS3Dto"
           }
         },
         "required": [
-          "dropbox",
           "enabled",
-          "googleDrive",
           "onedrive",
-          "provider",
-          "s3"
-        ],
-        "type": "object"
-      },
-      "SystemConfigCloudStorageGoogleDriveDto": {
-        "properties": {
-          "clientId": {
-            "description": "Google Drive client ID",
-            "type": "string"
-          },
-          "clientSecret": {
-            "description": "Google Drive client secret",
-            "type": "string"
-          }
-        },
-        "required": [
-          "clientId",
-          "clientSecret"
+          "provider"
         ],
         "type": "object"
       },
@@ -24210,26 +24147,6 @@
         "required": [
           "clientId"
         ],
-        "type": "object"
-      },
-      "SystemConfigCloudStorageS3Dto": {
-        "properties": {
-          "accessKey": {
-            "type": "string"
-          },
-          "bucket": {
-            "type": "string"
-          },
-          "endpoint": {
-            "type": "string"
-          },
-          "region": {
-            "type": "string"
-          },
-          "secretKey": {
-            "type": "string"
-          }
-        },
         "type": "object"
       },
       "SystemConfigDto": {
@@ -24694,6 +24611,9 @@
           "ocr": {
             "$ref": "#/components/schemas/OcrConfig"
           },
+          "schedule": {
+            "$ref": "#/components/schemas/MachineLearningScheduleDto"
+          },
           "urls": {
             "description": "ML service URLs",
             "items": {
@@ -24710,6 +24630,7 @@
           "enabled",
           "facialRecognition",
           "ocr",
+          "schedule",
           "urls"
         ],
         "type": "object"

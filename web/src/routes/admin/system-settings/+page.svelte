@@ -80,7 +80,7 @@
     {
       component: CloudStorageSettings,
       title: 'Cloud Storage',
-      subtitle: 'Connect OneDrive, Google Drive, Dropbox, or S3-compatible storage',
+      subtitle: 'Store uploaded originals in OneDrive',
       key: 'cloud-storage',
       icon: mdiCloudOutline,
     },

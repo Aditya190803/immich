@@ -3,9 +3,6 @@ import { handleError } from '$lib/utils/handle-error';
 
 export enum CloudStorageProvider {
   ONEDRIVE = 'onedrive',
-  GOOGLE_DRIVE = 'google_drive',
-  DROPBOX = 'dropbox',
-  S3_COMPATIBLE = 's3_compatible',
 }
 
 export interface CloudStorageStatus {
@@ -22,21 +19,9 @@ export interface CloudStorageConnectResponse {
   url: string;
 }
 
-export interface CloudStorageTestConnection {
-  success: boolean;
-  error?: string;
-}
-
 export interface CloudStorageConfig {
-  s3: {
-    endpoint: string;
-    region: string;
-    bucket: string;
-    accessKey: string;
-    secretKey: string;
-  };
   enabled: boolean;
-  provider: string | null;
+  provider: CloudStorageProvider | null;
 }
 
 export const cloudStorageStatus: Writable<CloudStorageStatus | null> = { subscribe: () => () => {} } as any;
@@ -80,28 +65,6 @@ export async function disconnectCloudStorage(): Promise<void> {
     throw new Error('Failed to disconnect cloud storage');
   } catch (error) {
     handleError(error, 'Failed to disconnect cloud storage');
-    throw error;
-  }
-}
-
-export async function testCloudStorageConnection(
-  provider: string,
-  config: CloudStorageConfig['s3'],
-): Promise<CloudStorageTestConnection> {
-  try {
-    const params = new URLSearchParams(
-      Object.entries(config).flatMap(([key, value]) => (value ? [[key, value]] : [])),
-    );
-    const response = await fetch(`/api/cloud-storage/test-connection/${provider}?${params.toString()}`, {
-      method: 'POST',
-    });
-    if (response.ok) {
-      const data = (await response.json()) as CloudStorageTestConnection;
-      return data;
-    }
-    throw new Error('Failed to test connection');
-  } catch (error) {
-    handleError(error, 'Failed to test cloud storage connection');
     throw error;
   }
 }
