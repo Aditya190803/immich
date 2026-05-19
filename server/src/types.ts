@@ -202,6 +202,7 @@ export type ConcurrentQueueName = Exclude<
   | QueueName.FacialRecognition
   | QueueName.DuplicateDetection
   | QueueName.BackupDatabase
+  | QueueName.CloudSync
 >;
 
 export type Jobs = { [K in JobItem['name']]: (JobItem & { name: K })['data'] };
@@ -406,6 +407,10 @@ export type JobItem =
   // Workflow
   | { name: JobName.WorkflowAssetCreate; data: { workflowId: string; assetId: string } }
 
+  // Cloud Storage Sync
+  | { name: JobName.CloudSync; data: IEntityJob }
+  | { name: JobName.CloudSyncDelete; data: IEntityJob }
+
   // Editor
   | { name: JobName.AssetEditThumbnailGeneration; data: IEntityJob };
 
@@ -506,6 +511,7 @@ export interface SystemMetadata extends Record<SystemMetadataKey, Record<string,
   [SystemMetadataKey.SystemFlags]: DeepPartial<SystemFlags>;
   [SystemMetadataKey.VersionCheckState]: VersionCheckMetadata;
   [SystemMetadataKey.MemoriesState]: MemoriesState;
+  [SystemMetadataKey.CloudStorageCredentials]: Record<string, unknown>;
 }
 
 export type UserPreferences = {

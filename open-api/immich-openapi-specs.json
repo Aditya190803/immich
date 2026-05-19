@@ -4840,6 +4840,228 @@
         "x-immich-state": "Stable"
       }
     },
+    "/cloud-storage/callback/{provider}": {
+      "get": {
+        "description": "Callback endpoint for OAuth flow.",
+        "operationId": "callback",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "onedrive",
+                "google_drive",
+                "dropbox",
+                "s3_compatible"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "OAuth callback",
+        "tags": [
+          "Cloud Storage"
+        ]
+      }
+    },
+    "/cloud-storage/config": {
+      "get": {
+        "description": "Get cloud storage configuration.",
+        "operationId": "getConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get cloud storage config",
+        "tags": [
+          "Cloud Storage"
+        ],
+        "x-immich-admin-only": true,
+        "x-immich-permission": "systemConfig.read"
+      }
+    },
+    "/cloud-storage/connect/{provider}": {
+      "post": {
+        "description": "Initiate OAuth flow to connect to a cloud storage provider.",
+        "operationId": "connect",
+        "parameters": [
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "onedrive",
+                "google_drive",
+                "dropbox",
+                "s3_compatible"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Connect to cloud storage provider",
+        "tags": [
+          "Cloud Storage"
+        ],
+        "x-immich-admin-only": true,
+        "x-immich-permission": "systemConfig.update"
+      }
+    },
+    "/cloud-storage/disconnect": {
+      "delete": {
+        "description": "Disconnect from the current cloud storage provider.",
+        "operationId": "disconnect",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Disconnect cloud storage",
+        "tags": [
+          "Cloud Storage"
+        ],
+        "x-immich-admin-only": true,
+        "x-immich-permission": "systemConfig.update"
+      }
+    },
+    "/cloud-storage/status": {
+      "get": {
+        "description": "Get the current connection status of cloud storage.",
+        "operationId": "getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get cloud storage status",
+        "tags": [
+          "Cloud Storage"
+        ],
+        "x-immich-admin-only": true,
+        "x-immich-permission": "systemConfig.read"
+      }
+    },
+    "/cloud-storage/test-connection/{provider}": {
+      "post": {
+        "description": "Test connection to a cloud storage provider.",
+        "operationId": "testConnection",
+        "parameters": [
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "onedrive",
+                "google_drive",
+                "dropbox",
+                "s3_compatible"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Test cloud storage connection",
+        "tags": [
+          "Cloud Storage"
+        ],
+        "x-immich-admin-only": true,
+        "x-immich-permission": "systemConfig.update"
+      }
+    },
     "/download/archive": {
       "post": {
         "description": "Download a ZIP archive containing the specified assets. The assets must have been previously requested via the \"getDownloadInfo\" endpoint.",
@@ -15241,6 +15463,10 @@
       "description": "Administrative endpoints related to authentication."
     },
     {
+      "name": "Cloud Storage",
+      "description": "Cloud storage integration for backing up assets to OneDrive, Google Drive, Dropbox, or S3-compatible storage."
+    },
+    {
       "name": "Database Backups (admin)",
       "description": "Manage backups of the Immich database."
     },
@@ -17272,6 +17498,16 @@
         ],
         "type": "object"
       },
+      "CloudStorageProvider": {
+        "description": "Cloud storage provider",
+        "enum": [
+          "onedrive",
+          "google_drive",
+          "dropbox",
+          "s3_compatible"
+        ],
+        "type": "string"
+      },
       "Colorspace": {
         "description": "Colorspace",
         "enum": [
@@ -18107,7 +18343,9 @@
           "VersionCheck",
           "OcrQueueAll",
           "Ocr",
-          "WorkflowAssetCreate"
+          "WorkflowAssetCreate",
+          "CloudSync",
+          "CloudSyncDelete"
         ],
         "type": "string"
       },
@@ -20267,7 +20505,8 @@
           "backupDatabase",
           "ocr",
           "workflow",
-          "editor"
+          "editor",
+          "cloudSync"
         ],
         "type": "string"
       },
@@ -20389,6 +20628,9 @@
           "backupDatabase": {
             "$ref": "#/components/schemas/QueueResponseLegacyDto"
           },
+          "cloudSync": {
+            "$ref": "#/components/schemas/QueueResponseLegacyDto"
+          },
           "duplicateDetection": {
             "$ref": "#/components/schemas/QueueResponseLegacyDto"
           },
@@ -20441,6 +20683,7 @@
         "required": [
           "backgroundTask",
           "backupDatabase",
+          "cloudSync",
           "duplicateDetection",
           "editor",
           "faceDetection",
@@ -23885,11 +24128,118 @@
         ],
         "type": "object"
       },
+      "SystemConfigCloudStorageDropboxDto": {
+        "properties": {
+          "clientId": {
+            "description": "Dropbox client ID",
+            "type": "string"
+          },
+          "clientSecret": {
+            "description": "Dropbox client secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clientId",
+          "clientSecret"
+        ],
+        "type": "object"
+      },
+      "SystemConfigCloudStorageDto": {
+        "properties": {
+          "dropbox": {
+            "$ref": "#/components/schemas/SystemConfigCloudStorageDropboxDto"
+          },
+          "enabled": {
+            "description": "Enabled",
+            "type": "boolean"
+          },
+          "googleDrive": {
+            "$ref": "#/components/schemas/SystemConfigCloudStorageGoogleDriveDto"
+          },
+          "onedrive": {
+            "$ref": "#/components/schemas/SystemConfigCloudStorageOneDriveDto"
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CloudStorageProvider"
+              }
+            ],
+            "description": "Provider",
+            "nullable": true
+          },
+          "s3": {
+            "$ref": "#/components/schemas/SystemConfigCloudStorageS3Dto"
+          }
+        },
+        "required": [
+          "dropbox",
+          "enabled",
+          "googleDrive",
+          "onedrive",
+          "provider",
+          "s3"
+        ],
+        "type": "object"
+      },
+      "SystemConfigCloudStorageGoogleDriveDto": {
+        "properties": {
+          "clientId": {
+            "description": "Google Drive client ID",
+            "type": "string"
+          },
+          "clientSecret": {
+            "description": "Google Drive client secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clientId",
+          "clientSecret"
+        ],
+        "type": "object"
+      },
+      "SystemConfigCloudStorageOneDriveDto": {
+        "properties": {
+          "clientId": {
+            "description": "OneDrive client ID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clientId"
+        ],
+        "type": "object"
+      },
+      "SystemConfigCloudStorageS3Dto": {
+        "properties": {
+          "accessKey": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "secretKey": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "SystemConfigDto": {
         "description": "System configuration",
         "properties": {
           "backup": {
             "$ref": "#/components/schemas/SystemConfigBackupsDto"
+          },
+          "cloudStorage": {
+            "$ref": "#/components/schemas/SystemConfigCloudStorageDto"
           },
           "ffmpeg": {
             "$ref": "#/components/schemas/SystemConfigFFmpegDto"
@@ -23954,6 +24304,7 @@
         },
         "required": [
           "backup",
+          "cloudStorage",
           "ffmpeg",
           "image",
           "job",

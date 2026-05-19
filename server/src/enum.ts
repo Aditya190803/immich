@@ -1,5 +1,17 @@
 import z from 'zod';
 
+export enum CloudStorageProvider {
+  ONEDRIVE = 'onedrive',
+  GOOGLE_DRIVE = 'google_drive',
+  DROPBOX = 'dropbox',
+  S3_COMPATIBLE = 's3_compatible',
+}
+
+export const CloudStorageProviderSchema = z
+  .enum(CloudStorageProvider)
+  .describe('Cloud storage provider')
+  .meta({ id: 'CloudStorageProvider' });
+
 export enum AuthType {
   Password = 'password',
   OAuth = 'oauth',
@@ -340,6 +352,7 @@ export enum SystemMetadataKey {
   SystemFlags = 'system-flags',
   VersionCheckState = 'version-check-state',
   License = 'license',
+  CloudStorageCredentials = 'cloud-storage-credentials',
 }
 
 export enum UserMetadataKey {
@@ -775,6 +788,7 @@ export enum QueueName {
   Ocr = 'ocr',
   Workflow = 'workflow',
   Editor = 'editor',
+  CloudSync = 'cloudSync',
 }
 
 export const QueueNameSchema = z.enum(QueueName).describe('Queue name').meta({ id: 'QueueName' });
@@ -867,6 +881,10 @@ export enum JobName {
 
   // Workflow
   WorkflowAssetCreate = 'WorkflowAssetCreate',
+
+  // Cloud Storage
+  CloudSync = 'CloudSync',
+  CloudSyncDelete = 'CloudSyncDelete',
 }
 
 export const JobNameSchema = z.enum(JobName).describe('Job name').meta({ id: 'JobName' });
@@ -1123,6 +1141,7 @@ export enum ApiTag {
   Authentication = 'Authentication',
   AuthenticationAdmin = 'Authentication (admin)',
   Assets = 'Assets',
+  CloudStorage = 'Cloud Storage',
   DatabaseBackups = 'Database Backups (admin)',
   Deprecated = 'Deprecated',
   Download = 'Download',

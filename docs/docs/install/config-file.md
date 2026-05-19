@@ -205,6 +205,28 @@ The default configuration looks like this:
     "timeout": 30000,
     "tokenEndpointAuthMethod": "client_secret_post"
   },
+  "cloudStorage": {
+    "enabled": false,
+    "provider": null,
+    "onedrive": {
+      "clientId": ""
+    },
+    "googleDrive": {
+      "clientId": "",
+      "clientSecret": ""
+    },
+    "dropbox": {
+      "clientId": "",
+      "clientSecret": ""
+    },
+    "s3": {
+      "endpoint": "",
+      "region": "us-east-1",
+      "bucket": "",
+      "accessKey": "",
+      "secretKey": ""
+    }
+  },
   "passwordLogin": {
     "enabled": true
   },

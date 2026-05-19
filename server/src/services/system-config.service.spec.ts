@@ -204,6 +204,28 @@ const updatedConfig = Object.freeze<SystemConfig>({
   user: {
     deleteDelay: 15,
   },
+  cloudStorage: {
+    enabled: false,
+    provider: null,
+    onedrive: {
+      clientId: '',
+    },
+    googleDrive: {
+      clientId: '',
+      clientSecret: '',
+    },
+    dropbox: {
+      clientId: '',
+      clientSecret: '',
+    },
+    s3: {
+      endpoint: '',
+      region: 'us-east-1',
+      bucket: '',
+      accessKey: '',
+      secretKey: '',
+    },
+  },
   notifications: {
     smtp: {
       enabled: false,

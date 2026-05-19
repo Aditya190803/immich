@@ -1,6 +1,7 @@
 <script lang="ts">
   import AuthSettings from './AuthSettings.svelte';
   import BackupSettings from './BackupSettings.svelte';
+  import CloudStorageSettings from '$lib/components/admin-settings/CloudStorageSettings.svelte';
   import FFmpegSettings from './FFmpegSettings.svelte';
   import ImageSettings from './ImageSettings.svelte';
   import JobSettings from './JobSettings.svelte';
@@ -30,6 +31,7 @@
     mdiBellOutline,
     mdiBookshelf,
     mdiClockOutline,
+    mdiCloudOutline,
     mdiDatabaseOutline,
     mdiFileDocumentOutline,
     mdiFolderOutline,
@@ -74,6 +76,13 @@
       subtitle: $t('admin.backup_settings_description'),
       key: 'backup',
       icon: mdiBackupRestore,
+    },
+    {
+      component: CloudStorageSettings,
+      title: 'Cloud Storage',
+      subtitle: 'Connect OneDrive, Google Drive, Dropbox, or S3-compatible storage',
+      key: 'cloud-storage',
+      icon: mdiCloudOutline,
     },
     {
       component: ImageSettings,

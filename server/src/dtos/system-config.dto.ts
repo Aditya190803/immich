@@ -8,6 +8,7 @@ import {
 } from 'src/dtos/model-config.dto';
 import {
   AudioCodecSchema,
+  CloudStorageProviderSchema,
   ColorspaceSchema,
   CQModeSchema,
   ImageFormatSchema,
@@ -347,6 +348,47 @@ const SystemConfigUserSchema = z
   })
   .meta({ id: 'SystemConfigUserDto' });
 
+const SystemConfigCloudStorageS3Schema = z
+  .object({
+    endpoint: z.string().optional(),
+    region: z.string().optional(),
+    bucket: z.string().optional(),
+    accessKey: z.string().optional(),
+    secretKey: z.string().optional(),
+  })
+  .meta({ id: 'SystemConfigCloudStorageS3Dto' });
+
+const SystemConfigCloudStorageOneDriveSchema = z
+  .object({
+    clientId: z.string().describe('OneDrive client ID'),
+  })
+  .meta({ id: 'SystemConfigCloudStorageOneDriveDto' });
+
+const SystemConfigCloudStorageGoogleDriveSchema = z
+  .object({
+    clientId: z.string().describe('Google Drive client ID'),
+    clientSecret: z.string().describe('Google Drive client secret'),
+  })
+  .meta({ id: 'SystemConfigCloudStorageGoogleDriveDto' });
+
+const SystemConfigCloudStorageDropboxSchema = z
+  .object({
+    clientId: z.string().describe('Dropbox client ID'),
+    clientSecret: z.string().describe('Dropbox client secret'),
+  })
+  .meta({ id: 'SystemConfigCloudStorageDropboxDto' });
+
+const SystemConfigCloudStorageSchema = z
+  .object({
+    enabled: configBool.describe('Enabled'),
+    provider: CloudStorageProviderSchema.nullable().describe('Provider'),
+    onedrive: SystemConfigCloudStorageOneDriveSchema,
+    googleDrive: SystemConfigCloudStorageGoogleDriveSchema,
+    dropbox: SystemConfigCloudStorageDropboxSchema,
+    s3: SystemConfigCloudStorageS3Schema,
+  })
+  .meta({ id: 'SystemConfigCloudStorageDto' });
+
 export const SystemConfigSchema = z
   .object({
     backup: SystemConfigBackupsSchema,
@@ -370,6 +412,7 @@ export const SystemConfigSchema = z
     templates: SystemConfigTemplatesSchema,
     server: SystemConfigServerSchema,
     user: SystemConfigUserSchema,
+    cloudStorage: SystemConfigCloudStorageSchema,
   })
   .describe('System configuration')
   .meta({ id: 'SystemConfigDto' });

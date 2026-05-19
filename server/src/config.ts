@@ -1,6 +1,7 @@
 import { CronExpression } from '@nestjs/schedule';
 import {
   AudioCodec,
+  CloudStorageProvider,
   Colorspace,
   CQMode,
   ImageFormat,
@@ -190,6 +191,28 @@ export type SystemConfig = {
   user: {
     deleteDelay: number;
   };
+  cloudStorage: {
+    enabled: boolean;
+    provider: CloudStorageProvider | null;
+    onedrive: {
+      clientId: string;
+    };
+    googleDrive: {
+      clientId: string;
+      clientSecret: string;
+    };
+    dropbox: {
+      clientId: string;
+      clientSecret: string;
+    };
+    s3: {
+      endpoint?: string;
+      region?: string;
+      bucket?: string;
+      accessKey?: string;
+      secretKey?: string;
+    };
+  };
 };
 
 export type MachineLearningConfig = SystemConfig['machineLearning'];
@@ -240,7 +263,7 @@ export const defaults = Object.freeze<SystemConfig>({
     [QueueName.Ocr]: { concurrency: 1 },
     [QueueName.Workflow]: { concurrency: 5 },
     [QueueName.Editor]: { concurrency: 2 },
-  },
+  } as Record<QueueName, { concurrency: number }>,
   logging: {
     enabled: true,
     level: LogLevel.Log,
@@ -398,5 +421,27 @@ export const defaults = Object.freeze<SystemConfig>({
   },
   user: {
     deleteDelay: 7,
+  },
+  cloudStorage: {
+    enabled: false,
+    provider: null,
+    onedrive: {
+      clientId: '',
+    },
+    googleDrive: {
+      clientId: '',
+      clientSecret: '',
+    },
+    dropbox: {
+      clientId: '',
+      clientSecret: '',
+    },
+    s3: {
+      endpoint: '',
+      region: 'us-east-1',
+      bucket: '',
+      accessKey: '',
+      secretKey: '',
+    },
   },
 });

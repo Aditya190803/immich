@@ -2511,8 +2511,45 @@ export type SystemConfigUserDto = {
     /** Delete delay */
     deleteDelay: number;
 };
+export type SystemConfigCloudStorageOneDriveDto = {
+    /** OneDrive client ID */
+    clientId: string;
+};
+export type SystemConfigCloudStorageGoogleDriveDto = {
+    /** Google Drive client ID */
+    clientId: string;
+    /** Google Drive client secret */
+    clientSecret: string;
+};
+export type SystemConfigCloudStorageDropboxDto = {
+    /** Dropbox client ID */
+    clientId: string;
+    /** Dropbox client secret */
+    clientSecret: string;
+};
+export type SystemConfigCloudStorageS3Dto = {
+    accessKey?: string;
+    bucket?: string;
+    endpoint?: string;
+    region?: string;
+    secretKey?: string;
+};
+export type SystemConfigCloudStorageDto = {
+    /** Dropbox credentials */
+    dropbox: SystemConfigCloudStorageDropboxDto;
+    /** Enabled */
+    enabled: boolean;
+    /** Google Drive credentials */
+    googleDrive: SystemConfigCloudStorageGoogleDriveDto;
+    /** OneDrive credentials */
+    onedrive: SystemConfigCloudStorageOneDriveDto;
+    /** Provider */
+    provider: 'onedrive' | 'google_drive' | 'dropbox' | 's3_compatible' | null;
+    s3: SystemConfigCloudStorageS3Dto;
+};
 export type SystemConfigDto = {
     backup: SystemConfigBackupsDto;
+    cloudStorage: SystemConfigCloudStorageDto;
     ffmpeg: SystemConfigFFmpegDto;
     image: SystemConfigImageDto;
     job: SystemConfigJobDto;

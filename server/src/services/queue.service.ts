@@ -243,6 +243,11 @@ export class QueueService extends BaseService {
         return this.jobRepository.queue({ name: JobName.OcrQueueAll, data: { force } });
       }
 
+      case QueueName.CloudSync: {
+        this.logger.log('Cloud sync is event-driven. Assets are synced automatically on upload.');
+        return;
+      }
+
       default: {
         throw new BadRequestException(`Invalid job name: ${name}`);
       }
@@ -255,6 +260,7 @@ export class QueueService extends BaseService {
       QueueName.StorageTemplateMigration,
       QueueName.DuplicateDetection,
       QueueName.BackupDatabase,
+      QueueName.CloudSync,
     ].includes(name);
   }
 

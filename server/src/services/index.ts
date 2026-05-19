@@ -7,6 +7,7 @@ import { AssetService } from 'src/services/asset.service';
 import { AuthAdminService } from 'src/services/auth-admin.service';
 import { AuthService } from 'src/services/auth.service';
 import { CliService } from 'src/services/cli.service';
+import { CloudStorageService } from 'src/services/cloud-storage.service';
 import { DatabaseBackupService } from 'src/services/database-backup.service';
 import { DatabaseService } from 'src/services/database.service';
 import { DownloadService } from 'src/services/download.service';
@@ -20,6 +21,7 @@ import { MemoryService } from 'src/services/memory.service';
 import { MetadataService } from 'src/services/metadata.service';
 import { NotificationAdminService } from 'src/services/notification-admin.service';
 import { NotificationService } from 'src/services/notification.service';
+import { OAuthService } from 'src/services/oauth.service';
 import { OcrService } from 'src/services/ocr.service';
 import { PartnerService } from 'src/services/partner.service';
 import { PersonService } from 'src/services/person.service';
@@ -57,6 +59,7 @@ export const services = [
   AuthService,
   AuthAdminService,
   CliService,
+  CloudStorageService,
   DatabaseBackupService,
   DatabaseService,
   DownloadService,
@@ -70,6 +73,7 @@ export const services = [
   MetadataService,
   NotificationService,
   NotificationAdminService,
+  OAuthService,
   OcrService,
   PartnerService,
   PersonService,
