@@ -244,8 +244,7 @@ export class QueueService extends BaseService {
       }
 
       case QueueName.CloudSync: {
-        this.logger.log('Cloud sync is event-driven. Assets are synced automatically on upload.');
-        return;
+        return this.jobRepository.queue({ name: JobName.CloudSyncQueueAll, data: { force } });
       }
 
       default: {

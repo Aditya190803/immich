@@ -239,6 +239,9 @@ export class JobRepository {
         return { deduplication: { id: JobName.DatabaseBackup } };
       }
       default: {
+        if (item.data && 'delay' in item.data && item.data.delay) {
+          return { delay: item.data.delay };
+        }
         return null;
       }
     }

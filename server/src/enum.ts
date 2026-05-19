@@ -2,9 +2,6 @@ import z from 'zod';
 
 export enum CloudStorageProvider {
   ONEDRIVE = 'onedrive',
-  GOOGLE_DRIVE = 'google_drive',
-  DROPBOX = 'dropbox',
-  S3_COMPATIBLE = 's3_compatible',
 }
 
 export const CloudStorageProviderSchema = z
@@ -883,7 +880,9 @@ export enum JobName {
   WorkflowAssetCreate = 'WorkflowAssetCreate',
 
   // Cloud Storage
+  CloudSyncQueueAll = 'CloudSyncQueueAll',
   CloudSync = 'CloudSync',
+  CloudSyncCleanup = 'CloudSyncCleanup',
   CloudSyncDelete = 'CloudSyncDelete',
 }
 

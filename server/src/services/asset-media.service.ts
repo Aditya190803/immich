@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { extname } from 'node:path';
 import sanitize from 'sanitize-filename';
 import { StorageCore } from 'src/cores/storage.core';
@@ -30,6 +37,7 @@ import {
 } from 'src/enum';
 import { AuthRequest } from 'src/middleware/auth.guard';
 import { BaseService } from 'src/services/base.service';
+import { CloudStorageService } from 'src/services/cloud-storage.service';
 import { UploadFile, UploadRequest } from 'src/types';
 import { requireUploadAccess } from 'src/utils/access';
 import { asUploadRequest, onBeforeLink } from 'src/utils/asset.util';
@@ -44,6 +52,9 @@ export interface AssetMediaRedirectResponse {
 
 @Injectable()
 export class AssetMediaService extends BaseService {
+  @Inject(forwardRef(() => CloudStorageService))
+  private cloudStorageService!: CloudStorageService;
+
   async getUploadAssetIdByChecksum(auth: AuthDto, checksum?: string): Promise<AssetMediaResponseDto | undefined> {
     if (!checksum) {
       return;
@@ -172,7 +183,7 @@ export class AssetMediaService extends BaseService {
       dto.edited ?? false,
     );
 
-    const path = editedPath ?? originalPath!;
+    const path = editedPath ?? (await this.cloudStorageService.ensureOriginalLocal(id, originalPath!));
 
     return new ImmichFileResponse({
       path,
@@ -240,7 +251,8 @@ export class AssetMediaService extends BaseService {
       throw new NotFoundException('Asset not found or asset is not a video');
     }
 
-    const filepath = asset.encodedVideoPath || asset.originalPath;
+    const filepath =
+      asset.encodedVideoPath || (await this.cloudStorageService.ensureOriginalLocal(id, asset.originalPath));
 
     return new ImmichFileResponse({
       path: filepath,

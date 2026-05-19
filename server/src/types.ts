@@ -210,6 +210,7 @@ export type JobOf<T extends JobName> = Jobs[T];
 
 export interface IBaseJob {
   force?: boolean;
+  delay?: number;
 }
 
 export interface IDelayedJob extends IBaseJob {
@@ -408,7 +409,9 @@ export type JobItem =
   | { name: JobName.WorkflowAssetCreate; data: { workflowId: string; assetId: string } }
 
   // Cloud Storage Sync
+  | { name: JobName.CloudSyncQueueAll; data: IBaseJob }
   | { name: JobName.CloudSync; data: IEntityJob }
+  | { name: JobName.CloudSyncCleanup; data: IEntityJob }
   | { name: JobName.CloudSyncDelete; data: IEntityJob }
 
   // Editor

@@ -1,10 +1,9 @@
-import { Controller, Delete, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { validateOAuthState } from 'src/auth/oauth-state.store';
-import { validateS3Credentials } from 'src/auth/providers/s3';
 import { Endpoint } from 'src/decorators';
-import { CloudStorageConnectResponse, CloudStorageStatus, CloudStorageTestConnection } from 'src/dtos/cloud-storage.dto';
+import { CloudStorageConnectResponse, CloudStorageStatus } from 'src/dtos/cloud-storage.dto';
 import { ApiTag, CloudStorageProvider, Permission } from 'src/enum';
 import { Authenticated } from 'src/middleware/auth.guard';
 import { CloudStorageService } from 'src/services/cloud-storage.service';
@@ -32,15 +31,6 @@ export class CloudStorageController {
       return { connected: false, provider: null };
     }
 
-    if (provider === CloudStorageProvider.S3_COMPATIBLE) {
-      const quota = await this.cloudStorageService.getQuota();
-      return {
-        connected: true,
-        provider,
-        quota: quota || undefined,
-      };
-    }
-
     return this.oauthService.getConnectionStatus(provider);
   }
 
@@ -51,14 +41,10 @@ export class CloudStorageController {
     summary: 'Connect to cloud storage provider',
     description: 'Initiate OAuth flow to connect to a cloud storage provider.',
   })
-  async connect(
-    @Param('provider') provider: string,
-    @Req() req: Request,
-  ): Promise<CloudStorageConnectResponse> {
+  async connect(@Param('provider') provider: string, @Req() req: Request): Promise<CloudStorageConnectResponse> {
     const cloudProvider = provider as CloudStorageProvider;
-
-    if (cloudProvider === CloudStorageProvider.S3_COMPATIBLE) {
-      throw new Error('S3 does not use OAuth. Use config endpoint instead.');
+    if (cloudProvider !== CloudStorageProvider.ONEDRIVE) {
+      throw new BadRequestException('Only OneDrive cloud storage is supported right now');
     }
 
     const config = await this.systemConfigService.getSystemConfig();
@@ -123,7 +109,7 @@ export class CloudStorageController {
   })
   async disconnect(): Promise<void> {
     const provider = this.cloudStorageService.getActiveProvider();
-    if (provider && provider !== CloudStorageProvider.S3_COMPATIBLE) {
+    if (provider) {
       await this.oauthService.disconnect(provider);
     }
 
@@ -146,37 +132,11 @@ export class CloudStorageController {
     summary: 'Get cloud storage config',
     description: 'Get cloud storage configuration.',
   })
-  getConfig(): { s3: Record<string, never>; enabled: boolean; provider: string | null } {
+  getConfig(): { enabled: boolean; provider: string | null } {
     const provider = this.cloudStorageService.getActiveProvider();
     return {
       enabled: this.cloudStorageService.isConfigured(),
       provider,
-      s3: {},
     };
-  }
-
-  @Post('test-connection/:provider')
-  @Authenticated({ permission: Permission.SystemConfigUpdate, admin: true })
-  @ApiParam({ name: 'provider', enum: CloudStorageProvider })
-  @Endpoint({
-    summary: 'Test cloud storage connection',
-    description: 'Test connection to a cloud storage provider.',
-  })
-  async testConnection(
-    @Param('provider') provider: string,
-    @Query() config: any,
-  ): Promise<CloudStorageTestConnection> {
-    const cloudProvider = provider as CloudStorageProvider;
-
-    if (cloudProvider !== CloudStorageProvider.S3_COMPATIBLE) {
-      return { success: true };
-    }
-
-    try {
-      const valid = await validateS3Credentials(config);
-      return { success: valid, error: valid ? undefined : 'Invalid credentials' };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
   }
 }

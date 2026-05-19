@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable } from '@nestjs/common';
 import { parse } from 'node:path';
 import sanitize from 'sanitize-filename';
 import { StorageCore } from 'src/cores/storage.core';
@@ -7,11 +7,15 @@ import { DownloadArchiveDto, DownloadArchiveInfo, DownloadInfoDto, DownloadRespo
 import { Permission } from 'src/enum';
 import { ImmichReadStream } from 'src/repositories/storage.repository';
 import { BaseService } from 'src/services/base.service';
+import { CloudStorageService } from 'src/services/cloud-storage.service';
 import { HumanReadableSize } from 'src/utils/bytes';
 import { getPreferences } from 'src/utils/preferences';
 
 @Injectable()
 export class DownloadService extends BaseService {
+  @Inject(forwardRef(() => CloudStorageService))
+  private cloudStorageService!: CloudStorageService;
+
   async getDownloadInfo(auth: AuthDto, dto: DownloadInfoDto): Promise<DownloadResponseDto> {
     let assets;
 
@@ -104,7 +108,10 @@ export class DownloadService extends BaseService {
         filename = `${parsedFilename.name}+${count}${parsedFilename.ext}`;
       }
 
-      let realpath = dto.edited && editedPath ? editedPath : originalPath;
+      let realpath =
+        dto.edited && editedPath
+          ? editedPath
+          : await this.cloudStorageService.ensureOriginalLocal(assetId, originalPath);
 
       try {
         realpath = await this.storageRepository.realpath(realpath);

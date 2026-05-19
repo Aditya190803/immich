@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { CloudStorageProvider } from 'src/enum';
 
 export interface CloudFileMetadata {
@@ -28,7 +29,11 @@ export abstract class StorageAdapter {
   abstract readonly requiresOAuth: boolean;
 
   abstract upload(buffer: Buffer, path: string, mimeType: string): Promise<StorageUploadResult>;
+  async uploadFile(localPath: string, path: string, mimeType: string): Promise<StorageUploadResult> {
+    return this.upload(await readFile(localPath), path, mimeType);
+  }
   abstract download(cloudPath: string): Promise<Buffer>;
+  abstract downloadFile(cloudPath: string, localPath: string): Promise<void>;
   abstract delete(cloudPath: string): Promise<void>;
   abstract getMetadata(cloudPath: string): Promise<CloudFileMetadata>;
   abstract list(prefix: string): Promise<CloudFileMetadata[]>;
