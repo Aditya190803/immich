@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { createOAuthState } from 'src/auth/oauth-state.store';
-import * as dropbox from 'src/auth/providers/dropbox';
-import * as googleDrive from 'src/auth/providers/google-drive';
 import * as onedrive from 'src/auth/providers/onedrive';
 import { SystemConfig } from 'src/config';
 import { CloudStorageProvider } from 'src/enum';
@@ -41,28 +39,6 @@ export class OAuthService {
     return { clientId };
   }
 
-  private async getGoogleDriveConfig() {
-    const config = await this.getCloudStorageConfig();
-    if (!config.googleDrive.clientId || !config.googleDrive.clientSecret) {
-      throw new Error(
-        'Google Drive is not configured. Set cloudStorage.googleDrive.clientId and cloudStorage.googleDrive.clientSecret before connecting.',
-      );
-    }
-
-    return config.googleDrive;
-  }
-
-  private async getDropboxConfig() {
-    const config = await this.getCloudStorageConfig();
-    if (!config.dropbox.clientId || !config.dropbox.clientSecret) {
-      throw new Error(
-        'Dropbox is not configured. Set cloudStorage.dropbox.clientId and cloudStorage.dropbox.clientSecret before connecting.',
-      );
-    }
-
-    return config.dropbox;
-  }
-
   async connect(provider: CloudStorageProvider, clientOrigin?: string): Promise<{ url: string }> {
     let url: string;
 
@@ -73,18 +49,6 @@ export class OAuthService {
         const { codeVerifier, codeChallenge } = onedrive.generatePkce();
         const state = createOAuthState(provider, config, codeVerifier, clientOrigin);
         url = onedrive.buildOneDriveAuthUrl(config, state, codeChallenge);
-        break;
-      }
-      case CloudStorageProvider.GOOGLE_DRIVE: {
-        const config = await this.getGoogleDriveConfig();
-        const state = createOAuthState(provider, config, undefined, clientOrigin);
-        url = googleDrive.buildGoogleDriveAuthUrl(config, state);
-        break;
-      }
-      case CloudStorageProvider.DROPBOX: {
-        const config = await this.getDropboxConfig();
-        const state = createOAuthState(provider, config, undefined, clientOrigin);
-        url = dropbox.buildDropboxAuthUrl(config, state);
         break;
       }
       default: {
@@ -113,22 +77,6 @@ export class OAuthService {
           codeVerifier || '',
         );
         rootFolderId = await onedrive.createOneDriveFolder(tokens.accessToken);
-        break;
-      }
-      case CloudStorageProvider.GOOGLE_DRIVE: {
-        tokens = await googleDrive.exchangeGoogleDriveCode(
-          providerConfig as { clientId: string; clientSecret: string },
-          code,
-        );
-        rootFolderId = await googleDrive.createGoogleDriveFolder(tokens.accessToken);
-        break;
-      }
-      case CloudStorageProvider.DROPBOX: {
-        tokens = await dropbox.exchangeDropboxCode(
-          providerConfig as { clientId: string; clientSecret: string },
-          code,
-        );
-        rootFolderId = await dropbox.createDropboxFolder(tokens.accessToken);
         break;
       }
       default: {
@@ -160,17 +108,6 @@ export class OAuthService {
       switch (provider) {
         case CloudStorageProvider.ONEDRIVE: {
           newTokens = await onedrive.refreshOneDriveTokens(await this.getOneDriveConfig(), credentials.refreshToken);
-          break;
-        }
-        case CloudStorageProvider.GOOGLE_DRIVE: {
-          newTokens = await googleDrive.refreshGoogleDriveTokens(
-            await this.getGoogleDriveConfig(),
-            credentials.refreshToken,
-          );
-          break;
-        }
-        case CloudStorageProvider.DROPBOX: {
-          newTokens = await dropbox.refreshDropboxTokens(await this.getDropboxConfig(), credentials.refreshToken);
           break;
         }
         default: {
@@ -207,14 +144,6 @@ export class OAuthService {
       switch (provider) {
         case CloudStorageProvider.ONEDRIVE: {
           quota = await onedrive.getOneDriveQuota(token);
-          break;
-        }
-        case CloudStorageProvider.GOOGLE_DRIVE: {
-          quota = await googleDrive.getGoogleDriveQuota(token);
-          break;
-        }
-        case CloudStorageProvider.DROPBOX: {
-          quota = await dropbox.getDropboxQuota(token);
           break;
         }
       }

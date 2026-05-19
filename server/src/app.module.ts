@@ -6,10 +6,7 @@ import { ClsModule } from 'nestjs-cls';
 import { KyselyModule } from 'nestjs-kysely';
 import { OpenTelemetryModule } from 'nestjs-otel';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
-import { DropboxAdapter } from 'src/adapters/dropbox.adapter';
-import { GoogleDriveAdapter } from 'src/adapters/google-drive.adapter';
 import { OneDriveAdapter } from 'src/adapters/onedrive.adapter';
-import { S3Adapter } from 'src/adapters/s3.adapter';
 import { commandsAndQuestions } from 'src/commands';
 import { IWorker } from 'src/constants';
 import { controllers } from 'src/controllers';
@@ -44,7 +41,7 @@ import { QueueService } from 'src/services/queue.service';
 import { getKyselyConfig } from 'src/utils/database';
 import { configureUserAgent } from 'src/utils/fetch';
 
-const cloudStorageAdapters = [OneDriveAdapter, GoogleDriveAdapter, DropboxAdapter, S3Adapter];
+const cloudStorageAdapters = [OneDriveAdapter];
 
 const common = [...repositories, ...services, ...cloudStorageAdapters, GlobalExceptionFilter];
 
