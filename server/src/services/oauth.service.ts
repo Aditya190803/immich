@@ -27,12 +27,11 @@ export class OAuthService {
 
   private async getOneDriveConfig() {
     const config = await this.getCloudStorageConfig();
-    // Client ID can come from the admin UI (system config) or env var
     const clientId = config.onedrive.clientId || process.env.IMMICH_ONEDRIVE_CLIENT_ID || '';
 
     if (!clientId) {
       throw new Error(
-        'OneDrive client ID is not configured. Enter your Azure AD Application (client) ID in the Cloud Storage admin settings, or set IMMICH_ONEDRIVE_CLIENT_ID in your environment.',
+        'OneDrive client ID is not configured. Set IMMICH_ONEDRIVE_CLIENT_ID in your server environment.',
       );
     }
 

@@ -1,10 +1,5 @@
 <script lang="ts">
   import SettingAccordion from '$lib/components/shared-components/settings/SettingAccordion.svelte';
-  import SettingInputField from '$lib/components/shared-components/settings/SettingInputField.svelte';
-  import SettingButtonsRow from '$lib/components/shared-components/settings/SystemConfigButtonRow.svelte';
-  import { SettingInputFieldType } from '$lib/constants';
-  import { featureFlagsManager } from '$lib/managers/feature-flags-manager.svelte';
-  import { systemConfigManager } from '$lib/managers/system-config-manager.svelte';
   import { handleError } from '$lib/utils/handle-error';
   import { Button, Text } from '@immich/ui';
   import { onMount } from 'svelte';
@@ -24,10 +19,6 @@
     };
     folderName?: string;
   };
-
-  const disabled = $derived(featureFlagsManager.value.configFile);
-  const config = $derived(systemConfigManager.value);
-  let configToEdit = $state(systemConfigManager.cloneValue());
 
   let loading = $state(true);
   let connecting = $state(false);
@@ -141,37 +132,16 @@
         <div class="ms-4 mt-4 flex flex-col gap-4">
           <Text size="small">
             Connect OneDrive to store uploaded originals in the cloud. Immich keeps generated thumbnails and temporary
-            cache files locally for fast browsing. Enter your Azure App Client ID below and click
-            <strong>Connect OneDrive</strong> to sign in with your Microsoft account.
+            cache files locally for fast browsing.
           </Text>
 
           <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
             <p class="font-medium">OneDrive</p>
-            <p class="mb-4 text-sm text-gray-500">
-              Register an app at <a
-                href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"
-                target="_blank"
-                class="text-blue-600 underline dark:text-blue-400"
-              >
-                Azure Portal -> App registrations
-              </a>
-              and paste the <strong>Application (client) ID</strong> below. Set the redirect URI to:
+            <p class="text-sm text-gray-500">
+              OneDrive is configured from the server environment. Click <strong>Connect OneDrive</strong> to sign in
+              with the Microsoft account that owns the storage.
             </p>
-            <code class="mb-4 block rounded bg-gray-100 px-2 py-1 text-sm dark:bg-gray-800">
-              {globalThis?.location?.origin || 'https://your-immich.example.com'}/api/cloud-storage/callback/onedrive
-            </code>
-
-            <SettingInputField
-              inputType={SettingInputFieldType.TEXT}
-              label="onedrive_client_id"
-              bind:value={configToEdit.cloudStorage.onedrive.clientId}
-              required={false}
-              {disabled}
-              isEdited={!(configToEdit.cloudStorage.onedrive.clientId === config.cloudStorage.onedrive.clientId)}
-            />
           </div>
-
-          <SettingButtonsRow {disabled} keys={['cloudStorage']} bind:configToEdit />
 
           <hr />
 
@@ -222,7 +192,8 @@
             </div>
           {:else}
             <Text size="small">
-              Save your OneDrive client ID first, then connect to open the authorization page in a new tab.
+              Make sure the OneDrive environment variables are set, then connect to open the authorization page in a
+              new tab.
             </Text>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

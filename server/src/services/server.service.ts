@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { serverVersion } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { OnEvent } from 'src/decorators';
@@ -17,6 +17,7 @@ import {
 import { StorageFolder, SystemMetadataKey } from 'src/enum';
 import { UserStatsQueryResponse } from 'src/repositories/user.repository';
 import { BaseService } from 'src/services/base.service';
+import { CloudStorageService } from 'src/services/cloud-storage.service';
 import { asHumanReadable } from 'src/utils/bytes';
 import { mimeTypes } from 'src/utils/mime-types';
 import {
@@ -28,6 +29,9 @@ import {
 
 @Injectable()
 export class ServerService extends BaseService {
+  @Inject(forwardRef(() => CloudStorageService))
+  private cloudStorageService?: CloudStorageService;
+
   @OnEvent({ name: 'AppBootstrap' })
   async onBootstrap(): Promise<void> {
     const featureFlags = await this.getFeatures();
@@ -65,6 +69,23 @@ export class ServerService extends BaseService {
   }
 
   async getStorage(): Promise<ServerStorageResponseDto> {
+    const cloudQuota = await this.cloudStorageService?.getQuota();
+    if (cloudQuota?.total) {
+      const used = cloudQuota.used;
+      const available = Math.max(cloudQuota.total - used, 0);
+      const usagePercentage = ((used / cloudQuota.total) * 100).toFixed(2);
+
+      const serverInfo = new ServerStorageResponseDto();
+      serverInfo.diskAvailable = asHumanReadable(available);
+      serverInfo.diskSize = asHumanReadable(cloudQuota.total);
+      serverInfo.diskUse = asHumanReadable(used);
+      serverInfo.diskAvailableRaw = available;
+      serverInfo.diskSizeRaw = cloudQuota.total;
+      serverInfo.diskUseRaw = used;
+      serverInfo.diskUsagePercentage = Number.parseFloat(usagePercentage);
+      return serverInfo;
+    }
+
     const libraryBase = StorageCore.getBaseFolder(StorageFolder.Library);
     const diskInfo = await this.storageRepository.checkDiskUsage(libraryBase);
 

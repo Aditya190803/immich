@@ -31,6 +31,24 @@ describe(ServerService.name, () => {
       expect(mocks.storage.checkDiskUsage).toHaveBeenCalledWith(expect.stringContaining('/data/library'));
     });
 
+    it('should return OneDrive quota when cloud storage is active', async () => {
+      (sut as any).cloudStorageService = {
+        getQuota: vi.fn().mockResolvedValue({ used: 293_600_000_000, total: 472_800_000_000 }),
+      };
+
+      await expect(sut.getStorage()).resolves.toEqual({
+        diskAvailable: '166.9 GiB',
+        diskAvailableRaw: 179_200_000_000,
+        diskSize: '440.3 GiB',
+        diskSizeRaw: 472_800_000_000,
+        diskUsagePercentage: 62.1,
+        diskUse: '273.4 GiB',
+        diskUseRaw: 293_600_000_000,
+      });
+
+      expect(mocks.storage.checkDiskUsage).not.toHaveBeenCalled();
+    });
+
     it('should return the disk space as KiB', async () => {
       mocks.storage.checkDiskUsage.mockResolvedValue({ free: 200_000, available: 300_000, total: 500_000 });
 

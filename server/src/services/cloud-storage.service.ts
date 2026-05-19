@@ -74,6 +74,20 @@ export class CloudStorageService implements OnModuleInit {
     return this.activeProvider;
   }
 
+  async getQuota(): Promise<{ used: number; total: number } | null> {
+    await this.loadActiveProvider();
+    if (this.activeProvider !== CloudStorageProvider.ONEDRIVE) {
+      return null;
+    }
+
+    try {
+      return await this.oneDriveAdapter.getQuota();
+    } catch (error) {
+      this.logger.warn(`Unable to load OneDrive quota: ${error}`);
+      return null;
+    }
+  }
+
   // Event listeners
   // When an asset is created, queue a cloud sync upload job.
   @OnEvent({ name: 'AssetCreate' })
