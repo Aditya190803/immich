@@ -550,6 +550,21 @@ class ActionNotifier extends Notifier<void> {
       return ActionResult(count: ids.length, success: false, error: error.toString());
     }
   }
+
+  Future<ActionResult> resolveRemoteTrash(ActionSource source, {required bool keep}) async {
+    final selectedLocalIds = _getAssets(source).map((a) => a.localId).nonNulls.toSet();
+    _logger.info('resolveRemoteTrash, selectedLocalIds: $selectedLocalIds, keep: $keep');
+    if (selectedLocalIds.isEmpty) {
+      return const ActionResult(count: 0, success: false, error: 'Failed to select asset(s)');
+    }
+    try {
+      final result = await _service.resolveRemoteTrash(selectedLocalIds, keep: keep);
+      return ActionResult(count: result.displayCount, success: result.success);
+    } catch (error, stack) {
+      _logger.severe('Failed to ${keep ? 'keep' : 'trash'} assets', error, stack);
+      return ActionResult(count: selectedLocalIds.length, success: false, error: error.toString());
+    }
+  }
 }
 
 extension on Iterable<RemoteAsset> {

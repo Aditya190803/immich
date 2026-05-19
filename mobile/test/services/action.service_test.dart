@@ -11,6 +11,7 @@ import 'package:immich_mobile/repositories/download.repository.dart';
 import 'package:immich_mobile/services/action.service.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../fixtures/asset.stub.dart';
 import '../infrastructure/repository.mock.dart';
 import '../repository.mocks.dart';
 
@@ -24,7 +25,7 @@ void main() {
   late MockDriftLocalAssetRepository localAssetRepository;
   late MockDriftAlbumApiRepository albumApiRepository;
   late MockRemoteAlbumRepository remoteAlbumRepository;
-  late MockTrashedLocalAssetRepository trashedLocalAssetRepository;
+  late MockDriftTrashSyncRepository trashSyncRepository;
   late MockAssetMediaRepository assetMediaRepository;
   late MockDownloadRepository downloadRepository;
   late MockTagService tagService;
@@ -32,6 +33,7 @@ void main() {
   late Drift db;
 
   setUpAll(() async {
+    registerFallbackValue(LocalAssetStub.image1);
     TestWidgetsFlutterBinding.ensureInitialized();
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
 
@@ -51,7 +53,7 @@ void main() {
     localAssetRepository = MockDriftLocalAssetRepository();
     albumApiRepository = MockDriftAlbumApiRepository();
     remoteAlbumRepository = MockRemoteAlbumRepository();
-    trashedLocalAssetRepository = MockTrashedLocalAssetRepository();
+    trashSyncRepository = MockDriftTrashSyncRepository();
     assetMediaRepository = MockAssetMediaRepository();
     downloadRepository = MockDownloadRepository();
     tagService = MockTagService();
@@ -62,11 +64,14 @@ void main() {
       localAssetRepository,
       albumApiRepository,
       remoteAlbumRepository,
-      trashedLocalAssetRepository,
+      trashSyncRepository,
       assetMediaRepository,
       downloadRepository,
       tagService,
     );
+
+    when(() => trashSyncRepository.recordUserManualTrash(any())).thenAnswer((_) async {});
+    when(() => localAssetRepository.delete(any())).thenAnswer((_) async {});
   });
 
   tearDown(() async {
@@ -74,34 +79,32 @@ void main() {
   });
 
   group('ActionService.deleteLocal', () {
-    test('routes deleted ids to trashed repository when Android trash handling is enabled', () async {
+    test('records user manual trash and deletes local asset row when Android trash handling is enabled', () async {
       await Store.put(StoreKey.manageLocalMediaAndroid, true);
       const ids = ['a', 'b'];
 
       when(() => assetMediaRepository.deleteAll(ids)).thenAnswer((_) async => ids);
-      when(() => trashedLocalAssetRepository.applyTrashedAssets(ids)).thenAnswer((_) async {});
 
       final result = await sut.deleteLocal(ids);
 
       expect(result, ids.length);
       verify(() => assetMediaRepository.deleteAll(ids)).called(1);
-      verify(() => trashedLocalAssetRepository.applyTrashedAssets(ids)).called(1);
-      verifyNever(() => localAssetRepository.delete(any()));
+      verify(() => trashSyncRepository.recordUserManualTrash(ids)).called(1);
+      verify(() => localAssetRepository.delete(ids)).called(1);
     });
 
-    test('deletes locally when Android trash handling is disabled', () async {
+    test('only deletes locally when Android trash handling is disabled', () async {
       await Store.put(StoreKey.manageLocalMediaAndroid, false);
       const ids = ['c'];
 
       when(() => assetMediaRepository.deleteAll(ids)).thenAnswer((_) async => ids);
-      when(() => localAssetRepository.delete(ids)).thenAnswer((_) async {});
 
       final result = await sut.deleteLocal(ids);
 
       expect(result, ids.length);
       verify(() => assetMediaRepository.deleteAll(ids)).called(1);
       verify(() => localAssetRepository.delete(ids)).called(1);
-      verifyNever(() => trashedLocalAssetRepository.applyTrashedAssets(any()));
+      verifyNever(() => trashSyncRepository.recordUserManualTrash(any()));
     });
 
     test('short-circuits when nothing was deleted', () async {
@@ -114,8 +117,48 @@ void main() {
 
       expect(result, 0);
       verify(() => assetMediaRepository.deleteAll(ids)).called(1);
-      verifyNever(() => trashedLocalAssetRepository.applyTrashedAssets(any()));
+      verifyNever(() => trashSyncRepository.recordUserManualTrash(any()));
       verifyNever(() => localAssetRepository.delete(any()));
+    });
+  });
+
+  // The detailed approve/reject/partial-success behaviour is owned by
+  // DriftTrashSyncRepository (see trash_sync_repository_test.dart
+  // for the state-machine tests). Here we only verify that
+  // ActionService delegates correctly — the HIGH atomicity bug from the
+  // original PR can't recur because the state-machine surface is a
+  // single transactional method.
+  group('ActionService.resolveRemoteTrash', () {
+    test('delegates "keep" decisions to DriftTrashSyncRepository.applyReviewDecision', () async {
+      when(
+        () => trashSyncRepository.applyReviewDecision(any(), keep: any(named: 'keep')),
+      ).thenAnswer((_) async => (displayCount: 2, success: true));
+
+      final result = await sut.resolveRemoteTrash(['local-1', 'local-2'], keep: true);
+
+      expect(result, (displayCount: 2, success: true));
+      verify(() => trashSyncRepository.applyReviewDecision(['local-1', 'local-2'], keep: true)).called(1);
+    });
+
+    test('delegates "trash" decisions to DriftTrashSyncRepository.applyReviewDecision', () async {
+      when(
+        () => trashSyncRepository.applyReviewDecision(any(), keep: any(named: 'keep')),
+      ).thenAnswer((_) async => (displayCount: 1, success: true));
+
+      final result = await sut.resolveRemoteTrash(['local-1'], keep: false);
+
+      expect(result, (displayCount: 1, success: true));
+      verify(() => trashSyncRepository.applyReviewDecision(['local-1'], keep: false)).called(1);
+    });
+
+    test('propagates partial-success results from DriftTrashSyncRepository unchanged', () async {
+      when(
+        () => trashSyncRepository.applyReviewDecision(any(), keep: any(named: 'keep')),
+      ).thenAnswer((_) async => (displayCount: 1, success: false));
+
+      final result = await sut.resolveRemoteTrash(['local-1', 'local-2'], keep: false);
+
+      expect(result, (displayCount: 1, success: false));
     });
   });
 }

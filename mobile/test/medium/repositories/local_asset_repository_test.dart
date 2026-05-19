@@ -1,6 +1,10 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/constants/enums.dart';
+import 'package:immich_mobile/domain/models/album/local_album.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/infrastructure/entities/trash_sync.entity.dart';
+import 'package:immich_mobile/infrastructure/entities/trash_sync.entity.drift.dart';
 import 'package:immich_mobile/infrastructure/repositories/local_asset.repository.dart';
 import 'package:immich_mobile/utils/option.dart';
 
@@ -17,6 +21,87 @@ void main() {
 
   tearDown(() async {
     await ctx.dispose();
+  });
+
+  group('getRemoteTrashCandidatesByAlbum', () {
+    test('returns local assets from selected backup albums matched by remote id', () async {
+      final user = await ctx.newUser();
+      final remoteDeletedAt = DateTime(2025, 6, 1);
+      final remoteAsset = await ctx.newRemoteAsset(ownerId: user.id, deletedAt: remoteDeletedAt);
+      final localAsset = await ctx.newLocalAsset(checksum: remoteAsset.checksum);
+      final selectedAlbum = await ctx.newLocalAlbum(backupSelection: BackupSelection.selected);
+      final unselectedAlbum = await ctx.newLocalAlbum(backupSelection: BackupSelection.none);
+
+      await ctx.newLocalAlbumAsset(albumId: selectedAlbum.id, assetId: localAsset.id);
+      await ctx.newLocalAlbumAsset(albumId: unselectedAlbum.id, assetId: localAsset.id);
+
+      final remoteOnlyAsset = await ctx.newRemoteAsset(ownerId: user.id);
+
+      final result = await sut.getRemoteTrashCandidatesByAlbum({
+        remoteAsset.id: remoteDeletedAt,
+        remoteOnlyAsset.id: DateTime(2025, 6, 2),
+      });
+
+      expect(result.keys, equals({selectedAlbum.id}));
+      expect(result[selectedAlbum.id], hasLength(1));
+      expect(result[selectedAlbum.id]!.single.asset.id, localAsset.id);
+      expect(result[selectedAlbum.id]!.single.asset.remoteId, remoteAsset.id);
+      expect(result[selectedAlbum.id]!.single.remoteDeletedAt, remoteDeletedAt);
+    });
+
+    test('excludes assets that already have a trash sync state row', () async {
+      final user = await ctx.newUser();
+      final remoteDeletedAt = DateTime(2025, 6, 1);
+      final selectedAlbum = await ctx.newLocalAlbum(backupSelection: BackupSelection.selected);
+
+      final pendingRemote = await ctx.newRemoteAsset(ownerId: user.id, deletedAt: remoteDeletedAt);
+      final keptRemote = await ctx.newRemoteAsset(ownerId: user.id, deletedAt: remoteDeletedAt);
+      final trashedRemote = await ctx.newRemoteAsset(ownerId: user.id, deletedAt: remoteDeletedAt);
+
+      final pendingLocal = await ctx.newLocalAsset(checksum: pendingRemote.checksum);
+      final keptLocal = await ctx.newLocalAsset(checksum: keptRemote.checksum);
+      final trashedLocal = await ctx.newLocalAsset(checksum: trashedRemote.checksum);
+
+      await ctx.newLocalAlbumAsset(albumId: selectedAlbum.id, assetId: pendingLocal.id);
+      await ctx.newLocalAlbumAsset(albumId: selectedAlbum.id, assetId: keptLocal.id);
+      await ctx.newLocalAlbumAsset(albumId: selectedAlbum.id, assetId: trashedLocal.id);
+
+      // pendingLocal already has a pending review row → still surfaces (caller
+      // can choose to skip it, but the repo doesn't filter). keptLocal and
+      // trashedLocal have terminal-state rows → suppressed because the join
+      // checks `localAssetTrashStateEntity.localAssetId IS NULL`.
+      Future<void> seed(String localAssetId, String checksum, TrashStateDecision decision) async {
+        await ctx.db
+            .into(ctx.db.trashSyncEntity)
+            .insert(
+              TrashSyncEntityCompanion.insert(
+                localAssetId: localAssetId,
+                checksum: Value(checksum),
+                decision: decision,
+                triggerSource: TrashTriggerSource.remoteSync,
+                remoteDeletedAt: Value(remoteDeletedAt),
+                name: '$localAssetId.jpg',
+                type: AssetType.image,
+                createdAt: Value(remoteDeletedAt),
+                updatedAt: Value(remoteDeletedAt),
+              ),
+            );
+      }
+
+      // keptLocal and trashedLocal already decided — they should NOT be
+      // returned as new candidates. pendingLocal has no state row.
+      await seed(keptLocal.id, keptRemote.checksum, TrashStateDecision.kept);
+      await seed(trashedLocal.id, trashedRemote.checksum, TrashStateDecision.appTrashed);
+
+      final result = await sut.getRemoteTrashCandidatesByAlbum({
+        pendingRemote.id: remoteDeletedAt,
+        keptRemote.id: remoteDeletedAt,
+        trashedRemote.id: remoteDeletedAt,
+      });
+
+      expect(result.keys, equals({selectedAlbum.id}));
+      expect(result[selectedAlbum.id]!.map((item) => item.asset.id), [pendingLocal.id]);
+    });
   });
 
   group('getRemovalCandidates', () {

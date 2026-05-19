@@ -3,18 +3,14 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/models/sync_event.model.dart';
+import 'package:immich_mobile/infrastructure/repositories/trash_sync.repository.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/platform_extensions.dart';
-import 'package:immich_mobile/infrastructure/repositories/local_asset.repository.dart';
-import 'package:immich_mobile/infrastructure/repositories/storage.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_api.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_migration.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_stream.repository.dart';
-import 'package:immich_mobile/infrastructure/repositories/trashed_local_asset.repository.dart';
-import 'package:immich_mobile/repositories/local_files_manager.repository.dart';
 import 'package:immich_mobile/services/api.service.dart';
 import 'package:immich_mobile/utils/semver.dart';
 import 'package:logging/logging.dart';
@@ -27,15 +23,14 @@ enum SyncMigrationTask {
   v20260597_ResetAssetV1AssetV2, // Assets didn't include the uploadedAt column.
 }
 
+typedef _RemoteAssetTrashState = ({String id, DateTime? deletedAt, String? checksum});
+
 class SyncStreamService {
   final Logger _logger = Logger('SyncStreamService');
 
   final SyncApiRepository _syncApiRepository;
   final SyncStreamRepository _syncStreamRepository;
-  final DriftLocalAssetRepository _localAssetRepository;
-  final DriftTrashedLocalAssetRepository _trashedLocalAssetRepository;
-  final LocalFilesManagerRepository _localFilesManager;
-  final StorageRepository _storageRepository;
+  final DriftTrashSyncRepository _trashSyncRepository;
   final SyncMigrationRepository _syncMigrationRepository;
   final ApiService _api;
   final bool Function()? _cancelChecker;
@@ -43,19 +38,13 @@ class SyncStreamService {
   SyncStreamService({
     required SyncApiRepository syncApiRepository,
     required SyncStreamRepository syncStreamRepository,
-    required DriftLocalAssetRepository localAssetRepository,
-    required DriftTrashedLocalAssetRepository trashedLocalAssetRepository,
-    required LocalFilesManagerRepository localFilesManager,
-    required StorageRepository storageRepository,
+    required DriftTrashSyncRepository trashSyncRepository,
     required SyncMigrationRepository syncMigrationRepository,
     required ApiService api,
     bool Function()? cancelChecker,
   }) : _syncApiRepository = syncApiRepository,
        _syncStreamRepository = syncStreamRepository,
-       _localAssetRepository = localAssetRepository,
-       _trashedLocalAssetRepository = trashedLocalAssetRepository,
-       _localFilesManager = localFilesManager,
-       _storageRepository = storageRepository,
+       _trashSyncRepository = trashSyncRepository,
        _syncMigrationRepository = syncMigrationRepository,
        _api = api,
        _cancelChecker = cancelChecker;
@@ -200,22 +189,24 @@ class SyncStreamService {
       case SyncEntityType.assetV1:
         final remoteSyncAssets = data.cast<SyncAssetV1>();
         await _syncStreamRepository.updateAssetsV1(remoteSyncAssets);
-        if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
-          await _syncAssetTrashStatus(remoteSyncAssets.where((e) => e.deletedAt != null).map((e) => e.id).toList());
-        }
+        await _handleRemoteAssetTrashState(
+          remoteSyncAssets.map((e) => (id: e.id, deletedAt: e.deletedAt, checksum: e.checksum)),
+        );
         return;
       case SyncEntityType.assetV2:
         final remoteSyncAssets = data.cast<SyncAssetV2>();
         await _syncStreamRepository.updateAssetsV2(remoteSyncAssets);
-        if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
-          await _syncAssetTrashStatus(remoteSyncAssets.where((e) => e.deletedAt != null).map((e) => e.id).toList());
-        }
+        await _handleRemoteAssetTrashState(
+          remoteSyncAssets.map((e) => (id: e.id, deletedAt: e.deletedAt, checksum: e.checksum)),
+        );
         return;
       case SyncEntityType.assetDeleteV1:
         final remoteSyncAssets = data.cast<SyncAssetDeleteV1>();
-        if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
-          await _syncAssetDeletion(remoteSyncAssets.map((e) => e.assetId).toList());
-        }
+        final now = DateTime.now();
+        final remoteDeletedAtByRemoteId = Map<String, DateTime>.fromEntries(
+          remoteSyncAssets.map((e) => MapEntry(e.assetId, now)),
+        );
+        await _trashSyncRepository.recordRemoteTrash(remoteDeletedAtByRemoteId);
         return _syncStreamRepository.deleteAssetsV1(remoteSyncAssets);
       case SyncEntityType.assetExifV1:
         return _syncStreamRepository.updateAssetsExifV1(data.cast());
@@ -486,58 +477,26 @@ class SyncStreamService {
     }
   }
 
-  Future<void> _handleRemoteDeleted(Iterable<String> remoteIds) async {
-    if (remoteIds.isEmpty) {
-      return Future.value();
-    } else {
-      final localAssetsToTrash = await _localAssetRepository.getAssetsFromBackupAlbums(remoteIds);
-      if (localAssetsToTrash.isNotEmpty) {
-        await _trashLocalAssets(localAssetsToTrash);
-      } else {
-        _logger.info("No assets found in backup-enabled albums for remote assets: $remoteIds");
+  /// Funnels remote asset events into the trash-state machine.
+  ///
+  /// `deletedAt != null`  → trash event (Android/iOS) handled by service.
+  /// `deletedAt == null`  → potential restore event for any state row
+  ///                        keyed by that checksum.
+  Future<void> _handleRemoteAssetTrashState(Iterable<_RemoteAssetTrashState> remoteSyncAssets) async {
+    if (!CurrentPlatform.isAndroid && !CurrentPlatform.isIOS) {
+      return;
+    }
+
+    final deleted = <String, DateTime>{};
+    final aliveChecksums = <String>[];
+    for (final e in remoteSyncAssets) {
+      if (e.deletedAt != null) {
+        deleted[e.id] = e.deletedAt!;
+      } else if (e.checksum != null) {
+        aliveChecksums.add(e.checksum!);
       }
     }
-  }
-
-  Future<void> _trashLocalAssets(Map<String, List<LocalAsset>> localAssetsToTrash) async {
-    final mediaUrls = await Future.wait(
-      localAssetsToTrash.values
-          .expand((e) => e)
-          .map((localAsset) => _storageRepository.getAssetEntityForAsset(localAsset).then((e) => e?.getMediaUrl())),
-    );
-    _logger.info("Moving to trash ${mediaUrls.join(", ")} assets");
-    final result = await _localFilesManager.moveToTrash(mediaUrls.nonNulls.toList());
-    if (result) {
-      await _trashedLocalAssetRepository.trashLocalAsset(localAssetsToTrash);
-    }
-  }
-
-  Future<void> _applyRemoteRestoreToLocal() async {
-    final assetsToRestore = await _trashedLocalAssetRepository.getToRestore();
-    if (assetsToRestore.isNotEmpty) {
-      final restoredIds = await _localFilesManager.restoreAssetsFromTrash(assetsToRestore);
-      await _trashedLocalAssetRepository.applyRestoredAssets(restoredIds);
-    } else {
-      _logger.info("No remote assets found for restoration");
-    }
-  }
-
-  Future<void> _syncAssetTrashStatus(List<String> remoteIds) async {
-    if (!(await _localFilesManager.hasManageMediaPermission())) {
-      _logger.warning("Syncing asset trash status cannot proceed because MANAGE_MEDIA permission is missing");
-      return;
-    }
-
-    await _handleRemoteDeleted(remoteIds);
-    await _applyRemoteRestoreToLocal();
-  }
-
-  Future<void> _syncAssetDeletion(List<String> remoteIds) async {
-    if (!(await _localFilesManager.hasManageMediaPermission())) {
-      _logger.warning("Syncing asset deletion cannot proceed because MANAGE_MEDIA permission is missing");
-      return;
-    }
-
-    await _handleRemoteDeleted(remoteIds);
+    await _trashSyncRepository.recordRemoteTrash(deleted);
+    await _trashSyncRepository.recordRemoteRestore(aliveChecksums);
   }
 }

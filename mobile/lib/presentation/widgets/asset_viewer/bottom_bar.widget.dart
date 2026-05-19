@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/constants/enums.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/models/events.model.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
+import 'package:immich_mobile/domain/utils/event_stream.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/add_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/delete_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/delete_local_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/delete_permanent_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/edit_image_action_button.widget.dart';
+import 'package:immich_mobile/presentation/widgets/action_buttons/keep_on_device_action_button.widget.dart';
+import 'package:immich_mobile/presentation/widgets/action_buttons/move_to_trash_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/restore_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/share_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/upload_action_button.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/action.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/routes.provider.dart';
@@ -39,29 +44,50 @@ class ViewerBottomBar extends ConsumerWidget {
     final serverInfo = ref.watch(serverInfoProvider);
     final isInTrash = ref.read(timelineServiceProvider).origin == TimelineOrigin.trash;
 
+    final timelineOrigin = ref.read(timelineServiceProvider).origin;
+    final isSyncTrashTimeline = timelineOrigin == TimelineOrigin.syncTrash;
+
     final originalTheme = context.themeData;
 
     final actions = <Widget>[
-      if (isInTrash && isOwner && asset.hasRemote)
+      if (isInTrash && isOwner && asset.hasRemote && !isSyncTrashTimeline)
         const RestoreActionButton(source: ActionSource.viewer)
       else
         const ShareActionButton(source: ActionSource.viewer),
+      if (isSyncTrashTimeline) ...[
+        KeepOnDeviceActionButton(
+          source: ActionSource.viewer,
+          onResult: (result) {
+            showKeepResultToast(context, result);
+            _updateView(result, ref);
+          },
+        ),
+        MoveToTrashActionButton(
+          source: ActionSource.viewer,
+          onResult: (result) {
+            showTrashResultToast(context, result);
+            _updateView(result, ref);
+          },
+        ),
+      ] else ...[
+        const ShareActionButton(source: ActionSource.viewer),
 
-      if (!isInLockedView) ...[
-        if (!isInTrash) ...[
-          if (asset.isLocalOnly) const UploadActionButton(source: ActionSource.viewer),
-          // edit sync was added in 2.6.0
-          if (asset.isEditable && serverInfo.serverVersion >= const SemVer(major: 2, minor: 6, patch: 0))
-            const EditImageActionButton(),
-          if (asset.hasRemote) AddActionButton(originalTheme: originalTheme),
-        ],
-        if (isOwner) ...[
-          if (asset.isLocalOnly)
-            const DeleteLocalActionButton(source: ActionSource.viewer)
-          else if (asset.isTrashed)
-            const DeletePermanentActionButton(source: ActionSource.viewer, useShortLabel: true)
-          else
-            const DeleteActionButton(source: ActionSource.viewer, showConfirmation: true),
+        if (!isInLockedView) ...[
+          if (!isInTrash) ...[
+            if (asset.isLocalOnly) const UploadActionButton(source: ActionSource.viewer),
+            // edit sync was added in 2.6.0
+            if (asset.isEditable && serverInfo.serverVersion >= const SemVer(major: 2, minor: 6, patch: 0))
+              const EditImageActionButton(),
+            if (asset.hasRemote) AddActionButton(originalTheme: originalTheme),
+          ],
+          if (isOwner) ...[
+            if (asset.isLocalOnly)
+              const DeleteLocalActionButton(source: ActionSource.viewer)
+            else if (asset.isTrashed)
+              const DeletePermanentActionButton(source: ActionSource.viewer, useShortLabel: true)
+            else
+              const DeleteActionButton(source: ActionSource.viewer, showConfirmation: true),
+          ],
         ],
       ],
     ];
@@ -111,5 +137,16 @@ class ViewerBottomBar extends ConsumerWidget {
               ),
             ),
     );
+  }
+
+  void _updateView(ActionResult result, WidgetRef ref) {
+    Future.delayed(Durations.extralong4, () {
+      if (result.success) {
+        EventStream.shared.emit(const TimelineReloadEvent());
+      }
+      if (ref.context.mounted) {
+        ref.read(assetViewerProvider.notifier).setControls(true);
+      }
+    });
   }
 }

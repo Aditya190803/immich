@@ -22,6 +22,7 @@ import 'package:immich_mobile/infrastructure/entities/remote_album_user.entity.d
 import 'package:immich_mobile/infrastructure/entities/remote_asset.entity.dart';
 import 'package:immich_mobile/infrastructure/entities/remote_asset.entity.drift.dart';
 import 'package:immich_mobile/infrastructure/entities/remote_asset_cloud_id.entity.dart';
+import 'package:immich_mobile/infrastructure/entities/trash_sync.entity.dart';
 import 'package:immich_mobile/infrastructure/entities/stack.entity.dart';
 import 'package:immich_mobile/infrastructure/entities/store.entity.dart';
 import 'package:immich_mobile/infrastructure/entities/trashed_local_asset.entity.dart';
@@ -56,6 +57,7 @@ import 'package:logging/logging.dart';
     TrashedLocalAssetEntity,
     AssetEditEntity,
     MetadataEntity,
+    TrashSyncEntity,
   ],
   include: {'package:immich_mobile/infrastructure/entities/merged_asset.drift'},
 )
@@ -98,7 +100,7 @@ class Drift extends $Drift {
   }
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -275,6 +277,15 @@ class Drift extends $Drift {
           },
           from25To26: (m, v26) async {
             await m.addColumn(v26.remoteAssetEntity, v26.remoteAssetEntity.uploadedAt);
+          },
+          from26To27: (m, v27) async {
+            // Trash-sync decision table — keyed by local_asset_id with
+            // an explicit decision enum (pendingReview / kept /
+            // appTrashed). Defined fresh in v27 because feat/review-page
+            // hasn't shipped — no prior trash_sync rows exist in the wild.
+            await m.create(v27.trashSyncEntity);
+            await m.createIndex(v27.idxTrashSyncDecision);
+            await m.createIndex(v27.idxTrashSyncChecksum);
           },
         ),
       );

@@ -8,14 +8,15 @@ import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/asset_edit.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/tag.service.dart';
+import 'package:immich_mobile/infrastructure/repositories/trash_sync.repository.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/platform_extensions.dart';
 import 'package:immich_mobile/infrastructure/repositories/local_asset.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/remote_album.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/remote_asset.repository.dart';
-import 'package:immich_mobile/infrastructure/repositories/trashed_local_asset.repository.dart';
 import 'package:immich_mobile/providers/infrastructure/album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/trash_sync.provider.dart';
 import 'package:immich_mobile/repositories/asset_api.repository.dart';
 import 'package:immich_mobile/repositories/asset_media.repository.dart';
 import 'package:immich_mobile/repositories/download.repository.dart';
@@ -34,7 +35,7 @@ final actionServiceProvider = Provider<ActionService>(
     ref.watch(localAssetRepository),
     ref.watch(driftAlbumApiRepositoryProvider),
     ref.watch(remoteAlbumRepository),
-    ref.watch(trashedLocalAssetRepository),
+    ref.watch(trashSyncRepositoryProvider),
     ref.watch(assetMediaRepositoryProvider),
     ref.watch(downloadRepositoryProvider),
     ref.watch(tagServiceProvider),
@@ -47,7 +48,7 @@ class ActionService {
   final DriftLocalAssetRepository _localAssetRepository;
   final DriftAlbumApiRepository _albumApiRepository;
   final DriftRemoteAlbumRepository _remoteAlbumRepository;
-  final DriftTrashedLocalAssetRepository _trashedLocalAssetRepository;
+  final DriftTrashSyncRepository _trashSyncRepository;
   final AssetMediaRepository _assetMediaRepository;
   final DownloadRepository _downloadRepository;
   final TagService _tagService;
@@ -58,7 +59,7 @@ class ActionService {
     this._localAssetRepository,
     this._albumApiRepository,
     this._remoteAlbumRepository,
-    this._trashedLocalAssetRepository,
+    this._trashSyncRepository,
     this._assetMediaRepository,
     this._downloadRepository,
     this._tagService,
@@ -298,10 +299,16 @@ class ActionService {
       return 0;
     }
     if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
-      await _trashedLocalAssetRepository.applyTrashedAssets(deletedIds);
-    } else {
-      await _localAssetRepository.delete(deletedIds);
+      await _trashSyncRepository.recordUserManualTrash(deletedIds);
     }
+    await _localAssetRepository.delete(deletedIds);
     return deletedIds.length;
+  }
+
+  /// Apply a user review decision. The HIGH atomicity bug from the
+  /// original PR cannot recur — `DriftTrashSyncRepository` owns the single
+  /// transactional surface.
+  Future<RemoteTrashResolveResult> resolveRemoteTrash(Iterable<String> localAssetIds, {required bool keep}) {
+    return _trashSyncRepository.applyReviewDecision(localAssetIds, keep: keep);
   }
 }

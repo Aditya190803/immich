@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
@@ -354,8 +355,10 @@ class _SyncStatsCounts extends ConsumerWidget {
               ),
             ),
             // To be removed once the experimental feature is stable
-            if (CurrentPlatform.isAndroid &&
-                appSettingsService.getSetting<bool>(AppSettingsEnum.manageLocalMediaAndroid)) ...[
+            if ((kDebugMode || kProfileMode) &&
+                CurrentPlatform.isAndroid &&
+                (appSettingsService.getSetting<bool>(AppSettingsEnum.manageLocalMediaAndroid) ||
+                    appSettingsService.getSetting<bool>(AppSettingsEnum.reviewOutOfSyncChangesAndroid))) ...[
               SettingGroupTitle(title: "trash".t(context: context)),
               Consumer(
                 builder: (context, ref, _) {
